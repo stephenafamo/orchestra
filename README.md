@@ -142,9 +142,9 @@ func main() {
 	c := orchestra.Conductor{
 		Timeout: 5 * time.Second,
 		Players: map[string]orchestra.Player{
-            // the names are used to identify the players 
-            // both in logs and the returned errors
-            "function": a,
+			// the names are used to identify the players
+			// both in logs and the returned errors
+			"function": a,
 			"server":   b,
 		},
 	}
