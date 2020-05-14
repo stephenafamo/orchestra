@@ -81,7 +81,7 @@ func main() {
 func myFunction(ctx context.Context) error {
     // A continuously running process
     // Exits when ctx is done
-	<-ctx.Done()
+    <-ctx.Done()
     return nil
 }
 ```
@@ -115,7 +115,7 @@ func main() {
 
 ## Using the `Conductor`
 
-The Conductor type makes it easy to coordinate multiple long running processes. Because each one is blocking, it is often clumsy to start and stop all of them nicely.
+The `Conductor` type makes it easy to coordinate multiple long running processes. Because each one is blocking, it is often clumsy to start and stop all of them nicely.
 
 Well, the `Conductor` is here to make the pain go away.
 
@@ -142,12 +142,14 @@ func main() {
 	c := orchestra.Conductor{
 		Timeout: 5 * time.Second,
 		Players: map[string]orchestra.Player{
-			"function": a,
+            // the names are used to identify the players 
+            // both in logs and the returned errors
+            "function": a,
 			"server":   b,
 		},
 	}
 
-	// User the conductor as a Player
+	// Use the conductor as a Player
 	err := orchestra.PlayUntilSignal(c, os.Interrupt, syscall.SIGTERM)
 	if err != nil {
 		panic(err)
