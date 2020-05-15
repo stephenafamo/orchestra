@@ -14,12 +14,18 @@ const defaultTimeout time.Duration = 9 * time.Second
 type Conductor struct {
 	Timeout time.Duration
 	Players map[string]Player
+
+	playing map[string]struct{}
 }
 
 // Play starts all the players and gracefully shuts them down
-func (c Conductor) Play(ctxMain context.Context) error {
+func (c *Conductor) Play(ctxMain context.Context) error {
+	if c.playing == nil {
+		c.playing = map[string]struct{}{}
+	}
 
 	var wg sync.WaitGroup
+	var lock sync.RWMutex
 
 	// This will be sent to the sub daemons and canceled when the main context ends
 	ctxWthCancel, cancel := context.WithCancel(context.Background())
@@ -48,10 +54,31 @@ func (c Conductor) Play(ctxMain context.Context) error {
 	wg.Add(len(c.Players))
 	for name, p := range c.Players {
 		go func(name string, p Player) {
-			err := p.Play(ctxWthCancel)
-			if err != nil {
-				errs <- InstrumentError{name, err}
+
+			// The function to play our player
+			play := func(p Player) {
+				err := p.Play(ctxWthCancel)
+				if err != nil {
+					errs <- InstrumentError{name, err}
+				}
 			}
+
+			lock.RLock()
+			_, exists := c.playing[name]
+			lock.RUnlock()
+
+			if !exists {
+				lock.Lock()
+				c.playing[name] = struct{}{}
+				lock.Unlock()
+
+				play(p)
+			}
+
+			lock.Lock()
+			delete(c.playing, name)
+			lock.Unlock()
+
 			wg.Done()
 		}(name, p)
 	}

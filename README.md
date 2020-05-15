@@ -139,7 +139,7 @@ func main() {
 	b := orchestra.ServerPlayer{&http.Server{}}
 
 	// A conductor to control them all
-	c := orchestra.Conductor{
+	c := &orchestra.Conductor{
 		Timeout: 5 * time.Second,
 		Players: map[string]orchestra.Player{
 			// the names are used to identify the players
@@ -163,4 +163,6 @@ func myFunction(ctx context.Context) error {
 	return nil
 }
 ```
+
+Note: The Conductor makes sure that if by some mistake you add the conductor as a player to itself (or another conductor under it), it will not start the players multiple times.
 
