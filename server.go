@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 )
 
 // ServerPlayer is a type that extends the *http.Server
@@ -13,7 +14,7 @@ type ServerPlayer struct {
 }
 
 // Play starts the server until the context is done
-func (s ServerPlayer) Play(ctx context.Context) error {
+func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	errChan := make(chan error, 1)
 	go func() {
@@ -27,12 +28,17 @@ func (s ServerPlayer) Play(ctx context.Context) error {
 	}()
 
 	select {
-	case <-ctx.Done():
+	case <-ctxMain.Done():
 		log.Println("shutting down server")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		err := s.Shutdown(ctx)
 		if err != nil {
 			return fmt.Errorf("error while shutting down server: %v", err)
 		}
+
 		log.Println("shut down successfully")
 		return nil
 
