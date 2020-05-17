@@ -41,7 +41,7 @@ package main
 
 import (
     "os"
-	"syscall"
+    "syscall"
     
     "github.com/stephenafamo/orchestra"
 )
