@@ -2,6 +2,7 @@ package orchestra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -20,15 +21,10 @@ type Conductor struct {
 
 // Play starts all the players and gracefully shuts them down
 func (c *Conductor) Play(ctxMain context.Context) error {
-	if c.playing == nil {
-		c.playing = map[string]struct{}{}
-	}
-
-	var wg sync.WaitGroup
-	var lock sync.RWMutex
+	c.playing = map[string]struct{}{}
 
 	// This will be sent to the sub daemons and canceled when the main context ends
-	ctxWthCancel, cancel := context.WithCancel(context.Background())
+	ctxWthCancel, cancel := context.WithCancel(ctxMain)
 
 	// This will be called after the main context is cancelled
 	timedCtx, cancelTimed := context.WithCancel(context.Background())
@@ -48,38 +44,29 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 		})
 	}()
 
-	var errs = make(chan InstrumentError)
+	// Unbuffered channels would block if nothing is reading off them
+	// So buffered them to the len of Players so goroutines are not blocked
+	// if they all error.
+	var errs = make(chan InstrumentError, len(c.Players))
 	var allDone = make(chan struct{})
 
+	var wg sync.WaitGroup
 	wg.Add(len(c.Players))
 	for name, p := range c.Players {
+		_, exists := c.playing[name]
+
+		if exists {
+			// Ensure we inform all other players to shutdown
+			cancel()
+			return fmt.Errorf("%s already exists", name)
+		}
+
 		go func(name string, p Player) {
+			defer wg.Done()
 
-			// The function to play our player
-			play := func(p Player) {
-				err := p.Play(ctxWthCancel)
-				if err != nil {
-					errs <- InstrumentError{name, err}
-				}
+			if err := p.Play(ctxWthCancel); err != nil {
+				errs <- InstrumentError{name, err}
 			}
-
-			lock.RLock()
-			_, exists := c.playing[name]
-			lock.RUnlock()
-
-			if !exists {
-				lock.Lock()
-				c.playing[name] = struct{}{}
-				lock.Unlock()
-
-				play(p)
-			}
-
-			lock.Lock()
-			delete(c.playing, name)
-			lock.Unlock()
-
-			wg.Done()
 		}(name, p)
 	}
 
@@ -91,11 +78,16 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 
 	select {
 	case err := <-errs:
-		log.Printf("Error occured in a player: %s\n", err.Name)
-		return err
+		// Ensure we inform all other players to shutdown
+		cancel()
+		// Handle the error once (logging an error is handling it once,
+		// and returning it is a second action on the same error).
+		return fmt.Errorf("Error occured in a player: %s", err.Name)
 	case <-timedCtx.Done():
-		log.Println("Pool stopped after timeout")
-		return nil
+		// If this times out, then players aren't shutting down correctly.
+		// We need to inform the users of this library that one or more of their
+		// players hasn't shutdown when the context's done channel was closed.
+		return errors.New("Forcing shutdown of conductor, not all players may have shutdown")
 	case <-allDone:
 		log.Println("All players exited sucessfully")
 		return nil
