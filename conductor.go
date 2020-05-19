@@ -47,7 +47,7 @@ func (c *Conductor) Play(ctx context.Context) error {
 		})
 	}()
 
-	var errs = make(chan InstrumentError)
+	var errs = make(chan InstrumentError, len(c.Players))
 	var allDone = make(chan struct{})
 
 	wg.Add(len(c.Players))
