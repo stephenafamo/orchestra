@@ -19,7 +19,7 @@ type Conductor struct {
 }
 
 // Play starts all the players and gracefully shuts them down
-func (c *Conductor) Play(ctxMain context.Context) error {
+func (c *Conductor) Play(ctx context.Context) error {
 	if c.playing == nil {
 		c.playing = map[string]struct{}{}
 	}
@@ -28,7 +28,7 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 	var lock sync.RWMutex
 
 	// This will be sent to the sub daemons and canceled when the main context ends
-	ctxWthCancel, cancel := context.WithCancel(context.Background())
+	// ctxWthCancel, cancel := context.WithCancel(context.Background())
 
 	// This will be called after the main context is cancelled
 	timedCtx, cancelTimed := context.WithCancel(context.Background())
@@ -39,8 +39,7 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 
 	// cancel all wkers if we receive a signal on the channel
 	go func() {
-		<-ctxMain.Done()
-		cancel()
+		<-ctx.Done()
 
 		// Cancel the timed context
 		time.AfterFunc(c.Timeout, func() {
@@ -53,34 +52,7 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 
 	wg.Add(len(c.Players))
 	for name, p := range c.Players {
-		go func(name string, p Player) {
-
-			// The function to play our player
-			play := func(p Player) {
-				err := p.Play(ctxWthCancel)
-				if err != nil {
-					errs <- InstrumentError{name, err}
-				}
-			}
-
-			lock.RLock()
-			_, exists := c.playing[name]
-			lock.RUnlock()
-
-			if !exists {
-				lock.Lock()
-				c.playing[name] = struct{}{}
-				lock.Unlock()
-
-				play(p)
-			}
-
-			lock.Lock()
-			delete(c.playing, name)
-			lock.Unlock()
-
-			wg.Done()
-		}(name, p)
+		go c.conductPlayer(ctx, &wg, &lock, errs, name, p)
 	}
 
 	// Wait for all the players to be done in another goroutine
@@ -91,28 +63,56 @@ func (c *Conductor) Play(ctxMain context.Context) error {
 
 	select {
 	case err := <-errs:
-		log.Printf("Error occured in a player: %s\n", err.Name)
-		return err
+		return fmt.Errorf("error occured in a player: %w", err)
 	case <-timedCtx.Done():
-		log.Println("Pool stopped after timeout")
-		return nil
+		log.Println("Conductor stopped after timeout")
+		return c.getTimeoutError(&lock)
 	case <-allDone:
 		log.Println("All players exited sucessfully")
 		return nil
 	}
 }
 
-// InstrumentError is an error that happens in an instrument started by a conductor
-// It carries the name of the instrument
-type InstrumentError struct {
-	Name string
-	Err  error
+// conductPlayer is how the conductor directs each player
+func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock *sync.RWMutex, errs chan<- InstrumentError, name string, p Player) {
+	defer wg.Done()
+
+	// The function to play our player
+	play := func(p Player) {
+		err := p.Play(ctx)
+		if err != nil {
+			errs <- InstrumentError{name, err}
+		}
+	}
+
+	lock.RLock()
+	_, exists := c.playing[name]
+	lock.RUnlock()
+
+	if !exists {
+		lock.Lock()
+		c.playing[name] = struct{}{}
+		lock.Unlock()
+
+		play(p)
+	}
+
+	lock.Lock()
+	delete(c.playing, name)
+	lock.Unlock()
 }
 
-func (e InstrumentError) Error() string {
-	return fmt.Sprintf("%s | %s", e.Name, e.Err)
-}
+// getTimeoutError builds a TimeoutErr for the conductor
+// It get the names of the players that have not yet stopped to return
+func (c *Conductor) getTimeoutError(lock *sync.RWMutex) TimeoutErr {
+	lock.RLock()
+	err := TimeoutErr{
+		Left: make([]string, len(c.playing)),
+	}
+	for name := range c.playing {
+		err.Left = append(err.Left, name)
+	}
+	lock.RUnlock()
 
-func (e InstrumentError) Unwrap() error {
-	return e.Err
+	return err
 }

@@ -139,7 +139,7 @@ func main() {
 	b := orchestra.ServerPlayer{&http.Server{}}
 
 	// A conductor to control them all
-	c := &orchestra.Conductor{
+	conductor := &orchestra.Conductor{
 		Timeout: 5 * time.Second,
 		Players: map[string]orchestra.Player{
 			// the names are used to identify the players
@@ -150,7 +150,7 @@ func main() {
 	}
 
 	// Use the conductor as a Player
-	err := orchestra.PlayUntilSignal(c, os.Interrupt, syscall.SIGTERM)
+	err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
 	if err != nil {
 		panic(err)
 	}
@@ -166,3 +166,34 @@ func myFunction(ctx context.Context) error {
 
 Note: The Conductor makes sure that if by some mistake you add the conductor as a player to itself (or another conductor under it), it will not start the players multiple times.
 
+If the conductor has to exit because of the timeout and not because all the `Players` exited successfully, it will return an error of type `TimeoutErr`.
+
+You can ignore this type of error by checking for it like this:
+
+```go
+// Use the conductor as a Player
+err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
+if err != nil && !errors.As(err, &orchestra.TimeoutErr{}) {
+	panic(err)
+}
+```
+
+Or you can specially handle it like this:
+
+```go
+// Use the conductor as a Player
+err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
+if err != nil {
+	timeoutErr := orchestra.TimeoutErr{}
+	if errors.As(err, &timeoutErr) {
+		fmt.Println(timeoutErr) // Handle the timeout error
+	} else {
+		panic(err) // handle other errors
+	}
+}
+```
+
+
+## Contributing
+
+Looking forward to pull requests.
