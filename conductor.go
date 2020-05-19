@@ -28,10 +28,12 @@ func (c *Conductor) Play(ctx context.Context) error {
 	var lock sync.RWMutex
 
 	// This will be sent to the sub daemons and canceled when the main context ends
-	// ctxWthCancel, cancel := context.WithCancel(context.Background())
+	ctxWthCancel, cancel := context.WithCancel(context.Background())
+	defer cancel() // shutdown players no matter how it exits
 
 	// This will be called after the main context is cancelled
 	timedCtx, cancelTimed := context.WithCancel(context.Background())
+	defer cancelTimed() // release resources at the end regardless
 
 	if c.Timeout < 1 {
 		c.Timeout = defaultTimeout
@@ -40,6 +42,7 @@ func (c *Conductor) Play(ctx context.Context) error {
 	// cancel all wkers if we receive a signal on the channel
 	go func() {
 		<-ctx.Done()
+		cancel()
 
 		// Cancel the timed context
 		time.AfterFunc(c.Timeout, func() {
@@ -52,7 +55,7 @@ func (c *Conductor) Play(ctx context.Context) error {
 
 	wg.Add(len(c.Players))
 	for name, p := range c.Players {
-		go c.conductPlayer(ctx, &wg, &lock, errs, name, p)
+		go c.conductPlayer(ctxWthCancel, &wg, &lock, errs, name, p)
 	}
 
 	// Wait for all the players to be done in another goroutine
