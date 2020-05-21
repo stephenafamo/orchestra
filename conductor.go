@@ -28,7 +28,7 @@ func (c *Conductor) Play(ctx context.Context) error {
 	var lock sync.RWMutex
 
 	// This will be sent to the sub daemons and canceled when the main context ends
-	ctxWthCancel, cancel := context.WithCancel(context.Background())
+	ctxWthCancel, cancel := context.WithCancel(ctx)
 	defer cancel() // shutdown players no matter how it exits
 
 	// This will be called after the main context is cancelled
@@ -42,7 +42,6 @@ func (c *Conductor) Play(ctx context.Context) error {
 	// cancel all wkers if we receive a signal on the channel
 	go func() {
 		<-ctx.Done()
-		cancel()
 
 		// Cancel the timed context
 		time.AfterFunc(c.Timeout, func() {
