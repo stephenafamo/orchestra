@@ -3,7 +3,6 @@ package orchestra
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 )
@@ -18,7 +17,7 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	errChan := make(chan error, 1)
 	go func() {
-		log.Printf("starting server")
+		Logger.Printf("starting server")
 		if err := s.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("error: failed to start server: %w", err)
@@ -29,7 +28,7 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	select {
 	case <-ctxMain.Done():
-		log.Println("shutting down server")
+		Logger.Printf("shutting down server")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -39,7 +38,7 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 			return fmt.Errorf("error while shutting down server: %v", err)
 		}
 
-		log.Println("shut down successfully")
+		Logger.Printf("shut down successfully")
 		return nil
 
 	case err := <-errChan:

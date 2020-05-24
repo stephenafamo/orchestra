@@ -3,7 +3,6 @@ package orchestra
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 )
@@ -67,10 +66,10 @@ func (c *Conductor) Play(ctx context.Context) error {
 	case err := <-errs:
 		return fmt.Errorf("error occured in a player: %w", err)
 	case <-timedCtx.Done():
-		log.Println("Conductor stopped after timeout")
+		Logger.Printf("Conductor stopped after timeout")
 		return c.getTimeoutError(&lock)
 	case <-allDone:
-		log.Println("All players exited sucessfully")
+		Logger.Printf("All players exited sucessfully")
 		return nil
 	}
 }

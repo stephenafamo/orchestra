@@ -193,6 +193,10 @@ if err != nil {
 }
 ```
 
+## Customization
+
+The logger can be modified by assiging a logger to `orchestra.Logger`
+
 
 ## Contributing
 
