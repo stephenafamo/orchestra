@@ -13,12 +13,22 @@ const defaultTimeout time.Duration = 9 * time.Second
 type Conductor struct {
 	Timeout time.Duration
 	Players map[string]Player
+	Logger  Logger
 
 	playing map[string]struct{}
 }
 
 // Play starts all the players and gracefully shuts them down
 func (c *Conductor) Play(ctx context.Context) error {
+	logger := c.Logger
+	if logger == nil {
+		logger = DefaultLogger
+	}
+
+	return c.playWithLogger(ctx, logger)
+}
+
+func (c *Conductor) playWithLogger(ctx context.Context, logger Logger) error {
 	if c.playing == nil {
 		c.playing = map[string]struct{}{}
 	}
@@ -26,7 +36,7 @@ func (c *Conductor) Play(ctx context.Context) error {
 	var wg sync.WaitGroup
 	var lock sync.RWMutex
 
-	// This will be sent to the sub daemons and canceled when the main context ends
+	// This will be sent to the sub players and canceled when the main context ends
 	ctxWthCancel, cancel := context.WithCancel(ctx)
 	defer cancel() // shutdown players no matter how it exits
 
@@ -48,12 +58,12 @@ func (c *Conductor) Play(ctx context.Context) error {
 		})
 	}()
 
-	var errs = make(chan InstrumentError, len(c.Players))
-	var allDone = make(chan struct{})
+	errs := make(chan InstrumentError, len(c.Players))
+	allDone := make(chan struct{})
 
 	wg.Add(len(c.Players))
 	for name, p := range c.Players {
-		go c.conductPlayer(ctxWthCancel, &wg, &lock, errs, name, p)
+		go c.conductPlayer(ctxWthCancel, &wg, &lock, errs, name, p, logger)
 	}
 
 	// Wait for all the players to be done in another goroutine
@@ -66,25 +76,17 @@ func (c *Conductor) Play(ctx context.Context) error {
 	case err := <-errs:
 		return fmt.Errorf("error occured in a player: %w", err)
 	case <-timedCtx.Done():
-		Logger.Printf("Conductor stopped after timeout")
+		logger.Printf("conductor stopped after timeout")
 		return c.getTimeoutError(&lock)
 	case <-allDone:
-		Logger.Printf("All players exited sucessfully")
+		logger.Printf("conductor exited sucessfully")
 		return nil
 	}
 }
 
 // conductPlayer is how the conductor directs each player
-func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock *sync.RWMutex, errs chan<- InstrumentError, name string, p Player) {
+func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock *sync.RWMutex, errs chan<- InstrumentError, name string, p Player, l Logger) {
 	defer wg.Done()
-
-	// The function to play our player
-	play := func(p Player) {
-		err := p.Play(ctx)
-		if err != nil {
-			errs <- InstrumentError{name, err}
-		}
-	}
 
 	lock.RLock()
 	_, exists := c.playing[name]
@@ -95,7 +97,23 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 		c.playing[name] = struct{}{}
 		lock.Unlock()
 
-		play(p)
+		l.Printf("starting %q", name)
+
+		var err error
+		if c, ok := p.(*Conductor); ok {
+			err = c.playWithLogger(ctx, subConductorLogger{
+				name: name,
+				l:    c.Logger,
+			})
+		} else {
+			err = p.Play(ctx)
+		}
+
+		if err != nil {
+			DefaultLogger.Printf("error in %q", name)
+			errs <- InstrumentError{name, err}
+		}
+		l.Printf("stopped %q", name)
 	}
 
 	lock.Lock()
