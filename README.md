@@ -2,12 +2,12 @@
 
 Orchestra is a library to manage long running go processes.
 
-At the heart of the library is an interface called Player 
+At the heart of the library is an interface called Player
 
 ```go
 // Player is a long running background worker
 type Player interface {
-	Play(context.Context) error
+    Play(context.Context) error
 }
 ```
 
@@ -20,8 +20,8 @@ Next, there's the Conductor type (which itself is a Player)
 ```go
 // Conductor is a group of workers. It is also a Player itself **evil laugh**
 type Conductor struct {
-	Timeout time.Duration
-	Players map[string]Player
+    Timeout time.Duration
+    Players map[string]Player
 }
 ```
 
@@ -33,9 +33,10 @@ The timeout is there incase there is a `Player` that refused to stop
 
 ### `PlayUntilSignal(p Player, sig ...os.Signal)`
 
-This will start a player with a context, and close the context once it receives any of the signals provided. 
+This will start a player with a context, and close the context once it receives any of the signals provided.
 
 Example:
+
 ```go
 package main 
 
@@ -65,7 +66,7 @@ package main
 import (
     "context"
     "os"
-	"syscall"
+    "syscall"
 
     "github.com/stephenafamo/orchestra"
 )
@@ -93,6 +94,7 @@ func myFunction(ctx context.Context) error {
 Since a very common long running process is the `*http.Server`, this makes it easy to create a player from one without having to re-write the boilerplate each time.
 
 With the help of multiple helper functions, we can create a gracefully shutting down server that closes on `SIGINT` and `SIGTERM` by:
+
 ```go
 package main 
 
@@ -123,44 +125,44 @@ Well, the `Conductor` is here to make the pain go away.
 package main
 
 import (
-	"context"
-	"net/http"
-	"os"
-	"syscall"
-	"time"
+    "context"
+    "net/http"
+    "os"
+    "syscall"
+    "time"
 
-	"github.com/stephenafamo/orchestra"
+    "github.com/stephenafamo/orchestra"
 )
 
 func main() {
-	// A player from a function
-	a := orchestra.PlayerFunc(myFunction)
-	// A player from a server
-	b := orchestra.ServerPlayer{&http.Server{}}
+    // A player from a function
+    a := orchestra.PlayerFunc(myFunction)
+    // A player from a server
+    b := orchestra.ServerPlayer{&http.Server{}}
 
-	// A conductor to control them all
-	conductor := &orchestra.Conductor{
-		Timeout: 5 * time.Second,
-		Players: map[string]orchestra.Player{
-			// the names are used to identify the players
-			// both in logs and the returned errors
-			"function": a,
-			"server":   b,
-		},
-	}
+    // A conductor to control them all
+    conductor := &orchestra.Conductor{
+        Timeout: 5 * time.Second,
+        Players: map[string]orchestra.Player{
+            // the names are used to identify the players
+            // both in logs and the returned errors
+            "function": a,
+            "server":   b,
+        },
+    }
 
-	// Use the conductor as a Player
-	err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
-	if err != nil {
-		panic(err)
-	}
+    // Use the conductor as a Player
+    err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
+    if err != nil {
+        panic(err)
+    }
 }
 
 func myFunction(ctx context.Context) error {
-	// A continuously running process
-	// Exits when ctx is done
-	<-ctx.Done()
-	return nil
+    // A continuously running process
+    // Exits when ctx is done
+    <-ctx.Done()
+    return nil
 }
 ```
 
@@ -174,7 +176,7 @@ You can ignore this type of error by checking for it like this:
 // Use the conductor as a Player
 err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
 if err != nil && !errors.As(err, &orchestra.TimeoutErr{}) {
-	panic(err)
+    panic(err)
 }
 ```
 
@@ -184,12 +186,12 @@ Or you can specially handle it like this:
 // Use the conductor as a Player
 err := orchestra.PlayUntilSignal(conductor, os.Interrupt, syscall.SIGTERM)
 if err != nil {
-	timeoutErr := orchestra.TimeoutErr{}
-	if errors.As(err, &timeoutErr) {
-		fmt.Println(timeoutErr) // Handle the timeout error
-	} else {
-		panic(err) // handle other errors
-	}
+    timeoutErr := orchestra.TimeoutErr{}
+    if errors.As(err, &timeoutErr) {
+        fmt.Println(timeoutErr) // Handle the timeout error
+    } else {
+        panic(err) // handle other errors
+    }
 }
 ```
 
@@ -197,7 +199,7 @@ if err != nil {
 
 The logger can be modified by assiging a logger to `orchestra.Logger`
 
-
 ## Contributing
 
 Looking forward to pull requests.
+
