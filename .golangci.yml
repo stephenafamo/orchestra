@@ -1,0 +1,6 @@
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - (io.Writer).Write
+      - (github.com/stephenafamo/orchestra.Logger).Log
+

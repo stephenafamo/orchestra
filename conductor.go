@@ -76,10 +76,10 @@ func (c *Conductor) playWithLogger(ctx context.Context, logger Logger) error {
 	case err := <-errs:
 		return fmt.Errorf("error occured in a player: %w", err)
 	case <-timedCtx.Done():
-		logger.Printf("conductor stopped after timeout")
+		logger.Log("msg", "conductor stopped after timeout")
 		return c.getTimeoutError(&lock)
 	case <-allDone:
-		logger.Printf("conductor exited sucessfully")
+		logger.Log("msg", "conductor exited sucessfully")
 		return nil
 	}
 }
@@ -97,7 +97,7 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 		c.playing[name] = struct{}{}
 		lock.Unlock()
 
-		l.Printf("starting %q", name)
+		l.Log("msg", "starting player", "name", name)
 
 		var err error
 		if c, ok := p.(*Conductor); ok {
@@ -110,10 +110,10 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 		}
 
 		if err != nil {
-			DefaultLogger.Printf("error in %q", name)
+			DefaultLogger.Log("error in " + name)
 			errs <- InstrumentError{name, err}
 		}
-		l.Printf("stopped %q", name)
+		l.Log("msg", "stopped player", "name", name)
 	}
 
 	lock.Lock()

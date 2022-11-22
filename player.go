@@ -13,16 +13,8 @@ type Player interface {
 
 // PlayUntilSignal starts the player and stops when it recieves os.Signals
 func PlayUntilSignal(p Player, sig ...os.Signal) error {
-
-	signals := make(chan os.Signal)
-	ctx, cancel := context.WithCancel(context.Background())
-	signal.Notify(signals, sig...)
-
-	// cancel the context if we receive a SIGINT or SIGTERM
-	go func() {
-		<-signals
-		cancel()
-	}()
+	ctx, cancel := signal.NotifyContext(context.Background(), sig...)
+	defer cancel()
 
 	return p.Play(ctx)
 }
