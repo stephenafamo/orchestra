@@ -10,6 +10,7 @@ import (
 // ServerPlayer is a type that extends the *http.Server
 type ServerPlayer struct {
 	*http.Server
+	Timeout time.Duration
 }
 
 // Play starts the server until the context is done
@@ -26,7 +27,12 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	select {
 	case <-ctxMain.Done():
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		timeout := s.Timeout
+		if timeout == 0 {
+			timeout = 10 * time.Second
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		err := s.Shutdown(ctx)
