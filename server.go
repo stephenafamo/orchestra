@@ -13,6 +13,33 @@ type ServerPlayer struct {
 	Timeout time.Duration
 }
 
+// ServerPlayerOption is a function interface to configure the ServerPlayer
+type ServerPlayerOption func(s *ServerPlayer)
+
+func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
+	s := &ServerPlayer{
+		Timeout: 10 * time.Second,
+	}
+	for _, f := range opts {
+		f(s)
+	}
+	return s
+}
+
+// WithTimeout replaces the default timeout of ServerPlayer
+func WithTimeout(timeout time.Duration) ServerPlayerOption {
+	return func(s *ServerPlayer) {
+		s.Timeout = timeout
+	}
+}
+
+// WithHTTPServer allow configuring the http.Server of ServerPlayer
+func WithHTTPServer(srv *http.Server) ServerPlayerOption {
+	return func(s *ServerPlayer) {
+		s.Server = srv
+	}
+}
+
 // Play starts the server until the context is done
 func (s ServerPlayer) Play(ctxMain context.Context) error {
 	errChan := make(chan error, 1)
@@ -28,9 +55,6 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 	select {
 	case <-ctxMain.Done():
 		timeout := s.Timeout
-		if timeout == 0 {
-			timeout = 10 * time.Second
-		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
