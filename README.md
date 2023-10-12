@@ -114,7 +114,7 @@ func main() {
             Addr: ":8080",
         }),
         // Sets the timeout waiting for the server to stop.
-        orchestra.WithTimeout(time.Second * 5),
+        orchestra.WithShutdownTimeout(time.Second * 5),
     )
     err := orchestra.PlayUntilSignal(s, os.Interrupt, syscall.SIGTERM)
     if err != nil {

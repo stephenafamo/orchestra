@@ -10,7 +10,7 @@ import (
 // ServerPlayer is a type that extends the *http.Server
 type ServerPlayer struct {
 	*http.Server
-	Timeout time.Duration
+	ShutdownTimeout time.Duration
 }
 
 // ServerPlayerOption is a function interface to configure the ServerPlayer
@@ -18,8 +18,8 @@ type ServerPlayerOption func(s *ServerPlayer)
 
 func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 	s := &ServerPlayer{
-		Server:  &http.Server{},
-		Timeout: 10 * time.Second,
+		Server:          &http.Server{},
+		ShutdownTimeout: 10 * time.Second,
 	}
 	for _, f := range opts {
 		f(s)
@@ -27,10 +27,10 @@ func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 	return s
 }
 
-// WithTimeout replaces the default timeout of ServerPlayer
-func WithTimeout(timeout time.Duration) ServerPlayerOption {
+// WithShutdownTimeout sets the shutdown timeout of ServerPlayer (10s by default)
+func WithShutdownTimeout(timeout time.Duration) ServerPlayerOption {
 	return func(s *ServerPlayer) {
-		s.Timeout = timeout
+		s.ShutdownTimeout = timeout
 	}
 }
 
@@ -55,7 +55,7 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	select {
 	case <-ctxMain.Done():
-		timeout := s.Timeout
+		timeout := s.ShutdownTimeout
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
