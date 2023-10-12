@@ -18,6 +18,7 @@ type ServerPlayerOption func(s *ServerPlayer)
 
 func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 	s := &ServerPlayer{
+		Server:  &http.Server{},
 		Timeout: 10 * time.Second,
 	}
 	for _, f := range opts {

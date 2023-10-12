@@ -2,19 +2,45 @@ package orchestra
 
 import (
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 )
 
 func TestNewServerPlayer(t *testing.T) {
-	srv := NewServerPlayer(
-		WithHTTPServer(&http.Server{Addr: "localhost:4321"}),
-		WithTimeout(5*time.Second),
-	)
-	if srv.Addr != "localhost:4321" {
-		t.Errorf(`expected srv.Addr to be "localhost:4321", got: %s`, srv.Addr)
+	type args struct {
+		opts []ServerPlayerOption
 	}
-	if srv.Timeout != (time.Second * 5) {
-		t.Errorf(`expected srv.Timeout to be "5s", got: %s`, srv.Timeout)
+	tests := []struct {
+		name string
+		args args
+		want *ServerPlayer
+	}{
+		{
+			name: "default",
+			args: args{},
+			want: &ServerPlayer{Server: &http.Server{}, Timeout: time.Second * 10},
+		},
+		{
+			name: "set timeout to 5s",
+			args: args{opts: []ServerPlayerOption{
+				WithTimeout(time.Second * 5),
+			}},
+			want: &ServerPlayer{Server: &http.Server{}, Timeout: time.Second * 5},
+		},
+		{
+			name: "replace default http server",
+			args: args{opts: []ServerPlayerOption{
+				WithHTTPServer(&http.Server{Addr: ":4321"}),
+			}},
+			want: &ServerPlayer{Server: &http.Server{Addr: ":4321"}, Timeout: time.Second * 10},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewServerPlayer(tt.args.opts...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewServerPlayer() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
