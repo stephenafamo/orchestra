@@ -9,8 +9,8 @@ import (
 
 // ServerPlayer is a type that extends the *http.Server
 type ServerPlayer struct {
-	*http.Server
-	ShutdownTimeout time.Duration
+	server          *http.Server
+	shutdownTimeout time.Duration
 }
 
 // ServerPlayerOption is a function interface to configure the ServerPlayer
@@ -18,8 +18,8 @@ type ServerPlayerOption func(s *ServerPlayer)
 
 func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 	s := &ServerPlayer{
-		Server:          &http.Server{},
-		ShutdownTimeout: 10 * time.Second,
+		server:          &http.Server{},
+		shutdownTimeout: 10 * time.Second,
 	}
 	for _, f := range opts {
 		f(s)
@@ -30,14 +30,14 @@ func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 // WithShutdownTimeout sets the shutdown timeout of ServerPlayer (10s by default)
 func WithShutdownTimeout(timeout time.Duration) ServerPlayerOption {
 	return func(s *ServerPlayer) {
-		s.ShutdownTimeout = timeout
+		s.shutdownTimeout = timeout
 	}
 }
 
 // WithHTTPServer allow configuring the http.Server of ServerPlayer
 func WithHTTPServer(srv *http.Server) ServerPlayerOption {
 	return func(s *ServerPlayer) {
-		s.Server = srv
+		s.server = srv
 	}
 }
 
@@ -45,7 +45,7 @@ func WithHTTPServer(srv *http.Server) ServerPlayerOption {
 func (s ServerPlayer) Play(ctxMain context.Context) error {
 	errChan := make(chan error, 1)
 	go func() {
-		if err := s.ListenAndServe(); err != nil {
+		if err := s.server.ListenAndServe(); err != nil {
 			if err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("error: failed to start server: %w", err)
 				return
@@ -55,12 +55,12 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 
 	select {
 	case <-ctxMain.Done():
-		timeout := s.ShutdownTimeout
+		timeout := s.shutdownTimeout
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		err := s.Shutdown(ctx)
+		err := s.server.Shutdown(ctx)
 		if err != nil {
 			return fmt.Errorf("error while shutting down server: %v", err)
 		}
