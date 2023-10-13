@@ -38,12 +38,12 @@ This will start a player with a context, and close the context once it receives 
 Example:
 
 ```go
-package main 
+package main
 
 import (
     "os"
     "syscall"
-    
+
     "github.com/stephenafamo/orchestra"
 )
 
@@ -66,6 +66,7 @@ package main
 import (
     "context"
     "os"
+    "time"
     "syscall"
 
     "github.com/stephenafamo/orchestra"
@@ -96,18 +97,25 @@ Since a very common long running process is the `*http.Server`, this makes it ea
 With the help of multiple helper functions, we can create a gracefully shutting down server that closes on `SIGINT` and `SIGTERM` by:
 
 ```go
-package main 
+package main
 
 import (
     "net/http"
     "os"
     "syscall"
-    
+
     "github.com/stephenafamo/orchestra"
 )
 
 func main() {
-    s := orchestra.ServerPlayer{&http.Server{}}
+    s := orchestra.NewServerPlayer(
+        // Setting the *http.Server
+        orchestra.WithHTTPServer(&http.Server{
+            Addr: ":8080",
+        }),
+        // Sets the timeout waiting for the server to stop.
+        orchestra.WithShutdownTimeout(time.Second * 5),
+    )
     err := orchestra.PlayUntilSignal(s, os.Interrupt, syscall.SIGTERM)
     if err != nil {
         panic(err)
@@ -138,7 +146,7 @@ func main() {
     // A player from a function
     a := orchestra.PlayerFunc(myFunction)
     // A player from a server
-    b := orchestra.ServerPlayer{&http.Server{}}
+    b := orchestra.NewServerPlayer()
 
     // A conductor to control them all
     conductor := &orchestra.Conductor{
@@ -202,4 +210,3 @@ The logger can be modified by assiging a logger to `orchestra.Logger`
 ## Contributing
 
 Looking forward to pull requests.
-
