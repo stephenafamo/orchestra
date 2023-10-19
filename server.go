@@ -16,9 +16,10 @@ type ServerPlayer struct {
 // ServerPlayerOption is a function interface to configure the ServerPlayer
 type ServerPlayerOption func(s *ServerPlayer)
 
-func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
+// NewServerPlayer creates a new ServerPlayer
+func NewServerPlayer(srv *http.Server, opts ...ServerPlayerOption) *ServerPlayer {
 	s := &ServerPlayer{
-		server:          &http.Server{},
+		server:          srv,
 		shutdownTimeout: 10 * time.Second,
 	}
 	for _, f := range opts {
@@ -31,13 +32,6 @@ func NewServerPlayer(opts ...ServerPlayerOption) *ServerPlayer {
 func WithShutdownTimeout(timeout time.Duration) ServerPlayerOption {
 	return func(s *ServerPlayer) {
 		s.shutdownTimeout = timeout
-	}
-}
-
-// WithHTTPServer allow configuring the http.Server of ServerPlayer
-func WithHTTPServer(srv *http.Server) ServerPlayerOption {
-	return func(s *ServerPlayer) {
-		s.server = srv
 	}
 }
 

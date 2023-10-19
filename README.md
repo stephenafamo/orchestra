@@ -88,7 +88,7 @@ func myFunction(ctx context.Context) error {
 }
 ```
 
-### `ServerPlayer{*http.Server}`
+### `NewServerPlayer(*http.Server)`
 
 `ServerPlayer` is a type that embeds the `*http.Server` and extends it to satisfy the `Player` interface.
 
@@ -110,9 +110,7 @@ import (
 func main() {
     s := orchestra.NewServerPlayer(
         // Setting the *http.Server
-        orchestra.WithHTTPServer(&http.Server{
-            Addr: ":8080",
-        }),
+        &http.Server{Addr: ":8080"},
         // Sets the timeout waiting for the server to stop.
         orchestra.WithShutdownTimeout(time.Second * 5),
     )
@@ -146,7 +144,7 @@ func main() {
     // A player from a function
     a := orchestra.PlayerFunc(myFunction)
     // A player from a server
-    b := orchestra.NewServerPlayer()
+    b := orchestra.NewServerPlayer(myServer)
 
     // A conductor to control them all
     conductor := &orchestra.Conductor{
