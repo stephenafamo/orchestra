@@ -9,6 +9,7 @@ import (
 
 func TestNewServerPlayer(t *testing.T) {
 	type args struct {
+		srv  *http.Server
 		opts []ServerPlayerOption
 	}
 	tests := []struct {
@@ -30,15 +31,13 @@ func TestNewServerPlayer(t *testing.T) {
 		},
 		{
 			name: "replace default http server",
-			args: args{opts: []ServerPlayerOption{
-				WithHTTPServer(&http.Server{Addr: ":4321"}),
-			}},
+			args: args{srv: &http.Server{Addr: ":4321"}},
 			want: &ServerPlayer{server: &http.Server{Addr: ":4321"}, shutdownTimeout: time.Second * 10},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewServerPlayer(tt.args.opts...); !reflect.DeepEqual(got, tt.want) {
+			if got := NewServerPlayer(tt.args.srv, tt.args.opts...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewServerPlayer() = %v, want %v", got, tt.want)
 			}
 		})

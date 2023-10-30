@@ -18,6 +18,9 @@ type ServerPlayerOption func(s *ServerPlayer)
 
 // NewServerPlayer creates a new ServerPlayer
 func NewServerPlayer(srv *http.Server, opts ...ServerPlayerOption) *ServerPlayer {
+	if srv == nil {
+		srv = &http.Server{}
+	}
 	s := &ServerPlayer{
 		server:          srv,
 		shutdownTimeout: 10 * time.Second,
