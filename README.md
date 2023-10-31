@@ -205,6 +205,18 @@ if err != nil {
 
 The logger can be modified by assiging a logger to `orchestra.Logger`
 
+```go
+type Logger interface {
+	Log(msg string, attrs ...slog.Attr)
+}
+```
+
+If you have an existing `*slog.Logger`, you can create an `orchestra.Logger` by using the `orchestra.LoggerFromSlog` function.
+
+```go
+orchestraLogger := orchestra.LoggerFromSlog(slog.Default())
+```
+
 ## Contributing
 
 Looking forward to pull requests.

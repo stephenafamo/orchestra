@@ -3,6 +3,7 @@ package orchestra
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -76,10 +77,10 @@ func (c *Conductor) playWithLogger(ctx context.Context, logger Logger) error {
 	case err := <-errs:
 		return fmt.Errorf("error occured in a player: %w", err)
 	case <-timedCtx.Done():
-		logger.Log("msg", "conductor stopped after timeout")
+		logger.Log("conductor stopped after timeout")
 		return c.getTimeoutError(&lock)
 	case <-allDone:
-		logger.Log("msg", "conductor exited sucessfully")
+		logger.Log("conductor exited sucessfully")
 		return nil
 	}
 }
@@ -97,23 +98,20 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 		c.playing[name] = struct{}{}
 		lock.Unlock()
 
-		l.Log("msg", "starting player", "name", name)
+		l.Log("starting player", slog.String("name", name))
 
 		var err error
 		if c, ok := p.(*Conductor); ok {
-			err = c.playWithLogger(ctx, subConductorLogger{
-				name: name,
-				l:    c.Logger,
-			})
+			err = c.playWithLogger(ctx, subConductorLogger{name: name, l: l})
 		} else {
 			err = p.Play(ctx)
 		}
 
 		if err != nil {
-			DefaultLogger.Log("error in " + name)
+			l.Log("error in " + name)
 			errs <- InstrumentError{name, err}
 		}
-		l.Log("msg", "stopped player", "name", name)
+		l.Log("stopped player", slog.String("name", name))
 	}
 
 	lock.Lock()

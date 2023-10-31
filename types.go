@@ -1,39 +1,33 @@
 package orchestra
 
 import (
-	"errors"
-	"fmt"
+	"context"
+	"log/slog"
 )
 
 // Logger is accepted by some Players ([Conductor], [ServerPlayer])
 type Logger interface {
-	Log(keyvals ...interface{}) error
+	Log(msg string, attrs ...slog.Attr)
+}
+
+type slogInterface interface {
+	LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr)
+}
+
+func LoggerFromSlog(level slog.Level, l slogInterface) Logger {
+	return slogLogger{level, l}
 }
 
 // DefaultLogger is used when a conductor's logger is nil
-var DefaultLogger Logger = defaultLogger{}
+var DefaultLogger Logger = LoggerFromSlog(slog.LevelInfo, slog.Default())
 
-type defaultLogger struct{}
+type slogLogger struct {
+	lvl    slog.Level
+	logger slogInterface
+}
 
-func (d defaultLogger) Log(keyvals ...interface{}) error {
-	pairLen := len(keyvals)
-
-	if pairLen < 1 || pairLen%2 != 0 {
-		return errors.New("non-even number of values to log")
-	}
-
-	for i := range keyvals {
-		if i%2 != 0 {
-			continue
-		}
-
-		fmt.Printf("%v=%q ", keyvals[i], keyvals[i+1])
-	}
-
-	// Move to next line
-	fmt.Println()
-
-	return nil
+func (d slogLogger) Log(msg string, attrs ...slog.Attr) {
+	d.logger.LogAttrs(context.Background(), d.lvl, msg, attrs...)
 }
 
 type subConductorLogger struct {
@@ -41,11 +35,11 @@ type subConductorLogger struct {
 	l    Logger
 }
 
-func (s subConductorLogger) Log(keyvals ...interface{}) error {
+func (s subConductorLogger) Log(msg string, attrs ...slog.Attr) {
 	l := s.l
 	if s.l == nil {
 		l = DefaultLogger
 	}
 
-	return l.Log(append([]interface{}{"conductor", s.name}, keyvals...)...)
+	l.Log(msg, append([]slog.Attr{slog.String("conductor", s.name)}, attrs...)...)
 }

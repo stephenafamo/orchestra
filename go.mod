@@ -1,3 +1,3 @@
 module github.com/stephenafamo/orchestra
 
-go 1.14
+go 1.21
