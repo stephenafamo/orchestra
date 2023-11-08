@@ -11,6 +11,7 @@ import (
 type ServerPlayer struct {
 	server          *http.Server
 	shutdownTimeout time.Duration
+	tls             bool
 }
 
 // ServerPlayerOption is a function interface to configure the ServerPlayer
@@ -38,11 +39,26 @@ func WithShutdownTimeout(timeout time.Duration) ServerPlayerOption {
 	}
 }
 
+// WithTLS indicates that the ServerPlayer uses TLS
+// so it will use ListenAndServeTLS instead of ListenAndServe
+func WithTLS() ServerPlayerOption {
+	return func(s *ServerPlayer) {
+		s.tls = true
+	}
+}
+
 // Play starts the server until the context is done
 func (s ServerPlayer) Play(ctxMain context.Context) error {
 	errChan := make(chan error, 1)
 	go func() {
-		if err := s.server.ListenAndServe(); err != nil {
+		var err error
+		if s.tls {
+			err = s.server.ListenAndServeTLS("", "")
+		} else {
+			err = s.server.ListenAndServe()
+		}
+
+		if err != nil {
 			if err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("error: failed to start server: %w", err)
 				return

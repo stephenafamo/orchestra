@@ -113,6 +113,8 @@ func main() {
         &http.Server{Addr: ":8080"},
         // Sets the timeout waiting for the server to stop.
         orchestra.WithShutdownTimeout(time.Second * 5),
+        // With TLS makes the server use ListenAndServeTLS
+        orchestra.WithTLS(),
     )
     err := orchestra.PlayUntilSignal(s, os.Interrupt, syscall.SIGTERM)
     if err != nil {
