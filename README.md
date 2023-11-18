@@ -205,7 +205,7 @@ if err != nil {
 
 ## Customization
 
-The logger can be modified by assiging a logger to `orchestra.Logger`
+The logger can be modified by assigning a logger to `orchestra.Logger`
 
 ```go
 type Logger interface {
