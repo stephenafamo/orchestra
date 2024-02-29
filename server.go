@@ -70,10 +70,10 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 	case <-ctxMain.Done():
 		timeout := s.shutdownTimeout
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		timedCtx, cancel := context.WithTimeout(context.WithoutCancel(ctxMain), timeout)
 		defer cancel()
 
-		err := s.server.Shutdown(ctx)
+		err := s.server.Shutdown(timedCtx)
 		if err != nil {
 			return fmt.Errorf("error while shutting down server: %v", err)
 		}
