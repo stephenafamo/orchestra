@@ -2,6 +2,7 @@ package orchestra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -42,7 +43,7 @@ func (c *Conductor) playWithLogger(ctx context.Context, logger Logger) error {
 	defer cancel() // shutdown players no matter how it exits
 
 	// This will be called after the main context is cancelled
-	timedCtx, cancelTimed := context.WithCancel(context.Background())
+	timedCtx, cancelTimed := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancelTimed() // release resources at the end regardless
 
 	if c.Timeout < 1 {
@@ -100,15 +101,17 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 
 		l.Log("starting player", slog.String("name", name))
 
-		var err error
-		if c, ok := p.(*Conductor); ok {
-			err = c.playWithLogger(ctx, subConductorLogger{name: name, l: l})
-		} else {
-			err = p.Play(ctx)
+		err := ErrRestart
+		for errors.Is(err, ErrRestart) {
+			if c, ok := p.(*Conductor); ok {
+				err = c.playWithLogger(ctx, subConductorLogger{name: name, l: l})
+			} else {
+				err = p.Play(ctx)
+			}
 		}
 
 		if err != nil {
-			l.Log("error in " + name)
+			l.Log("error in player", slog.String("name", name))
 			errs <- InstrumentError{name, err}
 		}
 		l.Log("stopped player", slog.String("name", name))

@@ -1,9 +1,13 @@
 package orchestra
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// Return this error from a player to signal the conductor to restart it
+var ErrRestart = errors.New("restart")
 
 // InstrumentError is an error that happens in an instrument started by a conductor
 // It carries the name of the instrument
