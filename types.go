@@ -7,39 +7,39 @@ import (
 
 // Logger is accepted by some Players ([Conductor], [ServerPlayer])
 type Logger interface {
-	Log(msg string, attrs ...slog.Attr)
+	Info(msg string, attrs ...slog.Attr)
+	Error(msg string, attrs ...slog.Attr)
+	WithGroup(name string) Logger
 }
+
+var _ slogInterface = &slog.Logger{}
 
 type slogInterface interface {
 	LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr)
+	WithGroup(name string) *slog.Logger
 }
 
-func LoggerFromSlog(level slog.Level, l slogInterface) Logger {
-	return slogLogger{level, l}
+func LoggerFromSlog(infoLevel, errorLevel slog.Level, l slogInterface) Logger {
+	return slogLogger{infoLevel, errorLevel, l}
 }
 
 // DefaultLogger is used when a conductor's logger is nil
-var DefaultLogger Logger = LoggerFromSlog(slog.LevelInfo, slog.Default())
+var DefaultLogger Logger = LoggerFromSlog(slog.LevelInfo, slog.LevelError, slog.Default())
 
 type slogLogger struct {
-	lvl    slog.Level
-	logger slogInterface
+	lvlInfo  slog.Level
+	lvlError slog.Level
+	logger   slogInterface
 }
 
-func (d slogLogger) Log(msg string, attrs ...slog.Attr) {
-	d.logger.LogAttrs(context.Background(), d.lvl, msg, attrs...)
+func (d slogLogger) Info(msg string, attrs ...slog.Attr) {
+	d.logger.LogAttrs(context.Background(), d.lvlInfo, msg, attrs...)
 }
 
-type subConductorLogger struct {
-	name string
-	l    Logger
+func (d slogLogger) Error(msg string, attrs ...slog.Attr) {
+	d.logger.LogAttrs(context.Background(), d.lvlError, msg, attrs...)
 }
 
-func (s subConductorLogger) Log(msg string, attrs ...slog.Attr) {
-	l := s.l
-	if s.l == nil {
-		l = DefaultLogger
-	}
-
-	l.Log(msg, append([]slog.Attr{slog.String("conductor", s.name)}, attrs...)...)
+func (d slogLogger) WithGroup(name string) Logger {
+	return slogLogger{d.lvlInfo, d.lvlError, d.logger.WithGroup(name)}
 }
