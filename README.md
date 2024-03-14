@@ -209,14 +209,16 @@ The logger can be modified by assigning a logger to `orchestra.Logger`
 
 ```go
 type Logger interface {
-	Log(msg string, attrs ...slog.Attr)
+	Info(msg string, attrs ...slog.Attr)
+	Error(msg string, attrs ...slog.Attr)
+	WithGroup(name string) Logger
 }
 ```
 
 If you have an existing `*slog.Logger`, you can create an `orchestra.Logger` by using the `orchestra.LoggerFromSlog` function.
 
 ```go
-orchestraLogger := orchestra.LoggerFromSlog(slog.Default())
+orchestraLogger := orchestra.LoggerFromSlog(slog.LevelInfo, slog.LevelError, slog.Default())
 ```
 
 ## Contributing
