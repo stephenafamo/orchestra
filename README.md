@@ -203,6 +203,31 @@ if err != nil {
 }
 ```
 
+### Restarting Players
+
+A player can be configured to restart, possibly with exponential backoff by implementing the `PlayerWithBackoff` interface.
+
+For example:
+
+```go
+package main
+
+import "github.com/cenkalti/backoff/v4"
+
+type playerThatRestartsImmediately struct{}
+
+func (playerThatRestartsImmediately) Backoff() backoff.BackOff {
+	return &backoff.ZeroBackOff{}
+}
+
+
+type playerWithExponentialBakoff struct{}
+
+func (playerWithExponentialBakoff) Backoff() backoff.BackOff {
+	return backoff.NewExponentialBackOff()
+}
+```
+
 ## Customization
 
 The logger can be modified by assigning a logger to `orchestra.Logger`
