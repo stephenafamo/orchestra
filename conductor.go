@@ -121,14 +121,14 @@ func (c *Conductor) conductPlayer(ctx context.Context, wg *sync.WaitGroup, lock 
 			}
 			return p.Play(ctx)
 		}, bkoff, func(err error, d time.Duration) {
-			l.Error("player failed", slog.Any("err", err), slog.Duration("backoff", d))
+			l.Error("player failed", slog.String("name", name), slog.Any("err", err), slog.Duration("backoff", d))
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
-			l.Error("player error", slog.Any("err", err))
+			l.Error("player error", slog.String("name", name), slog.Any("err", err))
 			errs <- InstrumentError{name, err}
 		}
 
-		l.Info("player stopped")
+		l.Info("player stopped", slog.String("name", name))
 	}
 
 	lock.Lock()
