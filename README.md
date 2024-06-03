@@ -104,6 +104,7 @@ import (
     "os"
     "syscall"
 
+	"github.com/cenkalti/backoff/v4"
     "github.com/stephenafamo/orchestra"
 )
 
@@ -115,6 +116,8 @@ func main() {
         orchestra.WithShutdownTimeout(time.Second * 5),
         // With TLS makes the server use ListenAndServeTLS
         orchestra.WithTLS(),
+        // With Backoff adds a backoff strategy to the server
+        orchestra.WithBackoff(backoff.NewExponentialBackOff()),
     )
     err := orchestra.PlayUntilSignal(s, os.Interrupt, syscall.SIGTERM)
     if err != nil {

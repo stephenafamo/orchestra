@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 // ServerPlayer is a type that extends the *http.Server
@@ -12,6 +14,7 @@ type ServerPlayer struct {
 	server          *http.Server
 	shutdownTimeout time.Duration
 	tls             bool
+	backoff         backoff.BackOff
 }
 
 // ServerPlayerOption is a function interface to configure the ServerPlayer
@@ -25,6 +28,7 @@ func NewServerPlayer(srv *http.Server, opts ...ServerPlayerOption) *ServerPlayer
 	s := &ServerPlayer{
 		server:          srv,
 		shutdownTimeout: 10 * time.Second,
+		backoff:         &backoff.StopBackOff{},
 	}
 	for _, f := range opts {
 		f(s)
@@ -44,6 +48,13 @@ func WithShutdownTimeout(timeout time.Duration) ServerPlayerOption {
 func WithTLS() ServerPlayerOption {
 	return func(s *ServerPlayer) {
 		s.tls = true
+	}
+}
+
+// WithBackoff sets the backoff strategy for the ServerPlayer
+func WithBackoff(b backoff.BackOff) ServerPlayerOption {
+	return func(s *ServerPlayer) {
+		s.backoff = b
 	}
 }
 
@@ -83,4 +94,12 @@ func (s ServerPlayer) Play(ctxMain context.Context) error {
 	case err := <-errChan:
 		return err
 	}
+}
+
+// Backoff satisfies the PlayerWithBackoff interface
+func (s ServerPlayer) Backoff() backoff.BackOff {
+	if s.backoff == nil {
+		return &backoff.StopBackOff{}
+	}
+	return s.backoff
 }
